@@ -55,7 +55,7 @@ class Individual():
             self.create_moveset()
             self.init_fitness()  
         self.fit = self.score()
-        print("scores", self.scores, "fit", self.fit)
+        #print("scores", self.scores, "fit", self.fit)
 
     def __str__(self):
         return f"Individual with total fitness of {self.fit}:\nstates: {self.states},\nmoves: {self.moves},\nscores: {self.scores}"
@@ -119,6 +119,9 @@ def generate_state(prev = None):
 
     else:
         state = [1,3,5,7,9]
+        if random.random() > 0.5:
+            i = random.randint(0, 4)
+            state[i] = random.randint(1, i*2+1)
     return tuple(state)
 
 def generate_state_list():
@@ -156,11 +159,6 @@ def crossover(inds: List[Individual]):
     return Individual(s, m, f)
 
 
-s = [(1, 3, 5, 7, 9), (1, 3, 5, 0, 9), (0, 3, 5, 0, 9), (0, 3, 5, 0, 3), (0, 3, 5, 0, 2), (0, 3, 0, 0, 2), (0, 2, 0, 0, 2), (0, 1, 0, 0, 2), (0, 1, 0, 0, 1), (0, 0, 0, 0, 1)]
-m =  [Nimply(row=3, num_objects=1), Nimply(row=2, num_objects=3), Nimply(row=2, num_objects=5), Nimply(row=2, num_objects=1), Nimply(row=4, num_objects=1), Nimply(row=1, num_objects=1), Nimply(row=4, num_objects=1), Nimply(row=1, num_objects=1), Nimply(row=1, num_objects=1), Nimply(row=4, num_objects=1)]
-f =  [8, 9, 10, 4, 7, 0] + [3, 2, 1, 0]
-a = Individual(s,m,f)
-print(a)
 population = generate_population()
 
 for generation in range(GENERATIONS):
