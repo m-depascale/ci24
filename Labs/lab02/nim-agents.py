@@ -3,8 +3,8 @@ import logging
 from pprint import pprint, pformat
 from collections import namedtuple
 import random
-from copy import deepcopy
-from typing import Callable, Tuple
+from copy import deepcopy, copy
+from typing import Callable, List, Set, Tuple
 import numpy as np
 
 
@@ -32,102 +32,153 @@ class Nim:
         assert self._k is None or num_objects <= self._k
         self._rows[row] -= num_objects
 
-Genotype = namedtuple("Nimply", "row, num_objects")
-Population = list[Genotype]
-FitnessFunction = Callable[[Genotype], float]
-PopulateFunc = Callable[[], Population]
-SelectionFunc = Callable[[Population, FitnessFunction], Tuple[Genotype, Genotype]]
-MutationFunc = Callable[[Genotype], Genotype]
 
-def generate_genotype(nrows: int ) -> Genotype:
-    """A genotype is represented as a tuple (row, action), so generate a random genome respecting game constraints"""
-    row = random.randint(0, nrows - 1)
-    action = random.randint(1, row * 2 + 1)
-    return Nimply(row, action)
+"""
+For simplicity, the game is fixed to 5 rows
+"""
+POPULATION_SIZE = 100
+GENERATIONS = 10
+TOURNAMENT_SIZE = 5
+OFFSPRING_SIZE = 100
+MUTATION_PROBABILITY = 0.25
 
-def generate_population(size: int, nrows: int) -> Population:
-    """Population is a list of genotypes"""
-    return [generate_genotype(nrows) for _ in range(size)]
+class Individual():
+    def __init__(self, s=None, m=None, f=None):
+        if(s):
+            self.states = s
+            self.moves = m
+            self.scores = f
+        else:
+            self.states = generate_state_list()
+            self.moves = []
+            self.scores = []
+            self.create_moveset()
+            self.init_fitness()  
+        self.fit = self.score()
+        print("scores", self.scores, "fit", self.fit)
 
-def fitness(genotype: Genotype, state: Nim):
-    """Scores the "goodness" of a genotype if it leads to a nim sum"""
-
-    post_genotype_state = list(state.rows)
-    post_genotype_state[genotype.row] -= genotype.num_objects
-    #Check if invalid move, so returns -1 -> discard the move
-    if (any(n < 0 for n in post_genotype_state)):
-        return -1
+    def __str__(self):
+        return f"Individual with total fitness of {self.fit}:\nstates: {self.states},\nmoves: {self.moves},\nscores: {self.scores}"
     
-    tmp = np.array([tuple(int(x) for x in f"{c:032b}") for c in post_genotype_state])
-    xor = tmp.sum(axis=0) % 2
-    xor = int("".join(str(_) for _ in xor), base=2)
+    def __repr__(self):
+        return f"Individual with total fitness of {self.fit}:\nstates: {self.states},\nmoves: {self.moves},\nscores: {self.scores}"
 
-    return xor
+    def create_moveset(self):
+        for j, state in enumerate(self.states):
+            rows = []
+            for i, row in enumerate(state):
+                if row != 0:
+                    rows.append(i)
+            row = random.choice(rows)
+            num_objects = random.randint(1, state[row])
+            self.moves.append(Nimply(row, num_objects))
 
-def selection_pair(population: Population, fitness_fun: FitnessFunction) -> Population:
-    return random.choices(
-        population=population,
-        weights=[fitness_fun(genotype) for genotype in population],
-        k=10
-    )
+    def init_fitness(self):
+        for i, state in enumerate(self.states):
+            current = list(state)
+            current[self.moves[i].row] -= self.moves[i].num_objects 
+            tmp = np.array([tuple(int(x) for x in f"{c:04b}") for c in current])
+            xor = tmp.sum(axis=0) % 2
+            xor = int("".join(str(_) for _ in xor), base=2)
+            self.scores.append(xor)
+            
+    def fitness(self, idx):
+        current = list(self.states[idx])
+        current[self.moves[idx].row] -= self.moves[idx].num_objects
+        tmp = np.array([tuple(int(x) for x in f"{c:04b}") for c in current])
+        xor = tmp.sum(axis=0) % 2
+        xor = int("".join(str(_) for _ in xor), base=2)
+        self.scores[idx] = xor
 
-
-def mutation(genotype: Genotype, num = 1,  probability = 0.5):
-    for _ in range(num):
-        num_objects = genotype.num_objects if random.random() > probability else abs(genotype.num_objects - 1)
-    return Nimply(genotype.row, num_objects)
-
-def run_evolution(
-        populate_func: PopulateFunc,
-        fitness_func: FitnessFunction,
-        fitness_limit: int,
-        selection_func: SelectionFunc = selection_pair,
-        mutation_func : MutationFunc = mutation,
-        generation_limit: int = 100
-) -> Tuple[Population, int]:
-    population = populate_func()
+    def score(self):
+        return sum(self.scores)
     
-    for i in range(generation_limit):
-        print(f"Generation {i}")
-        population = sorted(
-            population, 
-            key=lambda genotype: fitness_func(genotype),
-            reverse = False
-        )
 
-        if fitness_func(population[0]) >= fitness_limit:
-            print("limit break")
-            break
-        
-        next_generation = population[0:10]
+Population = List[Individual]
 
-        for j in range(int(len(population) / 10) - 1):
-            parents = selection_func(population, fitness_func)
-            for genotype in parents:
-                next_generation.append(mutation_func(genotype))
-        
-        population = next_generation
+def generate_move(state):
+    rows = []
+    for i, row in enumerate(state):
+        if row != 0:
+            rows.append(i)
+    row = random.choice(rows)
+    num_objects = random.randint(1, state[row])
+    move =  Nimply(row, num_objects)
+    return move
 
-    population = sorted(
-            population, 
-            key=lambda genotype: fitness_func(genotype),
-            reverse = False
-        )
+def generate_state(prev = None):
+    if(prev):
+        state = list(prev)
+        rows = []
+        for i, row in enumerate(state):
+            if row != 0:
+                rows.append(i)
+        row = random.choice(rows)
+        num_objects = random.randint(1, state[row])
+        state[row] -= num_objects
+
+    else:
+        state = [1,3,5,7,9]
+    return tuple(state)
+
+def generate_state_list():
+    states = []
+    states.append(generate_state())
+    while not (sum(1 for o in list(states[-1]) if o > 0) == 1):
+        states.append(generate_state(states[-1]))
+    return states
+
+def generate_population() -> Population:
+    return [Individual() for _ in range(POPULATION_SIZE)]
+
+def select_parent(population):
+    pool = [random.choice(population) for _ in range(TOURNAMENT_SIZE)]
+    champion = min(pool, key=lambda i: i.fit)
+    return champion
+
+def mutation(ind: Individual) -> Individual:
+    offspring = copy(ind)
+    idx = random.randint(0, len(offspring.states) - 1)
+    offspring.moves[idx] = generate_move(offspring.states[idx])
+    offspring.fitness(idx)
+    return offspring
+
+def crossover(inds: List[Individual]):
+    """Fixed 2 inds"""
+    p1 = inds[0]
+    p2 = inds[1]
+ 
+    s = p1.states[0:(len(p1.states)//2)] + p2.states[(len(p2.states)//2):]
+    m = p1.moves[0:(len(p1.states)//2)] + p2.moves[(len(p2.states)//2):]
+    f = p1.scores[0:(len(p1.states)//2)] + p2.scores[(len(p2.states)//2):]
+    #print(s,m,f)
+
+    return Individual(s, m, f)
+
+
+s = [(1, 3, 5, 7, 9), (1, 3, 5, 0, 9), (0, 3, 5, 0, 9), (0, 3, 5, 0, 3), (0, 3, 5, 0, 2), (0, 3, 0, 0, 2), (0, 2, 0, 0, 2), (0, 1, 0, 0, 2), (0, 1, 0, 0, 1), (0, 0, 0, 0, 1)]
+m =  [Nimply(row=3, num_objects=1), Nimply(row=2, num_objects=3), Nimply(row=2, num_objects=5), Nimply(row=2, num_objects=1), Nimply(row=4, num_objects=1), Nimply(row=1, num_objects=1), Nimply(row=4, num_objects=1), Nimply(row=1, num_objects=1), Nimply(row=1, num_objects=1), Nimply(row=4, num_objects=1)]
+f =  [8, 9, 10, 4, 7, 0] + [3, 2, 1, 0]
+a = Individual(s,m,f)
+print(a)
+population = generate_population()
+
+for generation in range(GENERATIONS):
+    offsprings = []
+    for _ in range(OFFSPRING_SIZE):
+        if random.random() < MUTATION_PROBABILITY:
+            p = select_parent(population)
+            o = mutation(p)
+        else:
+            o = crossover([select_parent(population) for _ in range(2)])
+        offsprings.append(o)
+    population.extend(offsprings)
+    population.sort(key=lambda i: i.fit, reverse=False)
+    population = population[:POPULATION_SIZE]
+
+    best = min(population, key=lambda o: o.fit)
+    print()
+    print(f"Generation {generation}, minimum fitness offspring of this gen: {best}")
     
-    return population, i
 
 
-nim = Nim(5)
-
-population, generations = run_evolution(
-    populate_func = partial(
-        generate_population, size = 50, nrows = 5
-    ),
-    fitness_func = partial(
-        fitness, state = nim
-    ),
-    fitness_limit = 1000
-)
-
-print(f"Number of generations: {generations}")
-print(f"Solutions: {population}")
