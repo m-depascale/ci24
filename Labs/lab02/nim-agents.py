@@ -36,8 +36,8 @@ class Nim:
 """
 For simplicity, the game is fixed to 5 rows
 """
-POPULATION_SIZE = 100
-GENERATIONS = 10
+POPULATION_SIZE = 1000
+GENERATIONS = 50
 TOURNAMENT_SIZE = 5
 OFFSPRING_SIZE = 100
 MUTATION_PROBABILITY = 0.25
@@ -54,14 +54,15 @@ class Individual():
             self.scores = []
             self.create_moveset()
             self.init_fitness()  
-        self.fit = self.score()
+        self.fit = None
+        self.score()
         #print("scores", self.scores, "fit", self.fit)
 
     def __str__(self):
         return f"Individual with total fitness of {self.fit}:\nstates: {self.states},\nmoves: {self.moves},\nscores: {self.scores}"
     
     def __repr__(self):
-        return f"Individual with total fitness of {self.fit}:\nstates: {self.states},\nmoves: {self.moves},\nscores: {self.scores}"
+        return f"\nIndividual with total fitness of {self.fit}:\nstates: {self.states},\nmoves: {self.moves},\nscores: {self.scores}"
 
     def create_moveset(self):
         for j, state in enumerate(self.states):
@@ -91,7 +92,7 @@ class Individual():
         self.scores[idx] = xor
 
     def score(self):
-        return sum(self.scores)
+        self.fit = sum(self.scores)
     
 
 Population = List[Individual]
@@ -158,7 +159,7 @@ def crossover(inds: List[Individual]):
 
     return Individual(s, m, f)
 
-
+"""
 population = generate_population()
 
 for generation in range(GENERATIONS):
@@ -173,10 +174,71 @@ for generation in range(GENERATIONS):
     population.extend(offsprings)
     population.sort(key=lambda i: i.fit, reverse=False)
     population = population[:POPULATION_SIZE]
-
+   
     best = min(population, key=lambda o: o.fit)
     print()
     print(f"Generation {generation}, minimum fitness offspring of this gen: {best}")
+"""
+
+class Agent():
+    def __init__(self):
+        self.brain = None
     
+    def training(self):
+        population = generate_population()
 
+        for generation in range(GENERATIONS):
+            offsprings = []
+            for _ in range(OFFSPRING_SIZE):
+                if random.random() < MUTATION_PROBABILITY:
+                    p = select_parent(population)
+                    o = mutation(p)
+                else:
+                    o = crossover([select_parent(population) for _ in range(2)])
+                offsprings.append(o)
+            population.extend(offsprings)
+            population.sort(key=lambda i: i.fit, reverse=False)
+            population = population[:POPULATION_SIZE]
+        
+            best = min(population, key=lambda o: o.fit)
+            print()
+            print(f"Generation {generation}, minimum fitness offspring of this gen: {best}")
 
+        self.brain = population
+
+    def play(self, nim: Nim):
+        move = None
+        fitness = 0
+        for neuron in self.brain:
+            for i, state in enumerate(neuron.states):
+                if state == nim:
+                    if neuron.scores[i] > fitness:
+                        move = neuron.moves[i]
+        if move:
+            return move
+        else:
+            return generate_move(nim)
+
+ciccio = Agent()
+ciccio.training()
+
+nim = Nim(5)
+player = random.randint(0,1)
+print(f"init : {nim}")
+while nim:
+    player = 1 - player
+    if player:
+        pile = int(input("Choose Pile: "))
+        count = int(input("Choose Count: "))
+        ply = Nimply(pile, count)
+        print(f"You chose to take {ply.num_objects} from pile {ply.row}.")
+    else:
+        ply = ciccio.play(nim.rows)
+        print(f"AI chose to take {ply.num_objects} from pile {ply.row}.")
+
+    nim.nimming(ply)
+    print(f"status: {nim}")
+if(player):    
+    print(f"status: You won!")
+else:
+    print(f"status: AI won!")
