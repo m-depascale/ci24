@@ -36,11 +36,11 @@ class Nim:
 """
 For simplicity, the game is fixed to 5 rows
 """
-POPULATION_SIZE = 1000
-GENERATIONS = 50
-TOURNAMENT_SIZE = 5
+POPULATION_SIZE = 73_000
+GENERATIONS = 100
+TOURNAMENT_SIZE = 10
 OFFSPRING_SIZE = 100
-MUTATION_PROBABILITY = 0.25
+MUTATION_PROBABILITY = 0.20
 
 class Individual():
     def __init__(self, s=None, m=None, f=None):
@@ -56,6 +56,8 @@ class Individual():
             self.init_fitness()  
         self.fit = None
         self.score()
+        if(s):
+            print(f'\n Individual generated with scores: {self.scores} and fitness {self.fit}')
         #print("scores", self.scores, "fit", self.fit)
 
     def __str__(self):
@@ -208,12 +210,16 @@ class Agent():
 
     def play(self, nim: Nim):
         move = None
-        fitness = 0
+        playable_moves = set()
+        fitness = 999
         for neuron in self.brain:
             for i, state in enumerate(neuron.states):
                 if state == nim:
-                    if neuron.scores[i] > fitness:
+                    playable_moves.add(tuple([neuron.moves[i], neuron.scores[i]]))
+                    if neuron.scores[i] < fitness:
                         move = neuron.moves[i]
+                        fitness = neuron.scores[i]
+        print(f'Available moves: {playable_moves}')
         if move:
             return move
         else:
