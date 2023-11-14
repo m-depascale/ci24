@@ -36,10 +36,10 @@ class Nim:
 """
 For simplicity, the game is fixed to 5 rows
 """
-POPULATION_SIZE = 73_000
+POPULATION_SIZE = 10_000
 GENERATIONS = 100
 TOURNAMENT_SIZE = 10
-OFFSPRING_SIZE = 100
+OFFSPRING_SIZE = 500
 MUTATION_PROBABILITY = 0.20
 
 class Individual():
@@ -56,8 +56,8 @@ class Individual():
             self.init_fitness()  
         self.fit = None
         self.score()
-        if(s):
-            print(f'\n Individual generated with scores: {self.scores} and fitness {self.fit}')
+        # if(s):
+        #     print(f'\n Individual generated with scores: {self.scores} and fitness {self.fit}')
         #print("scores", self.scores, "fit", self.fit)
 
     def __str__(self):
@@ -105,6 +105,8 @@ def generate_move(state):
         if row != 0:
             rows.append(i)
     row = random.choice(rows)
+    print()
+    print(row)
     num_objects = random.randint(1, state[row])
     move =  Nimply(row, num_objects)
     return move
@@ -225,26 +227,172 @@ class Agent():
         else:
             return generate_move(nim)
 
-ciccio = Agent()
-ciccio.training()
 
-nim = Nim(5)
-player = random.randint(0,1)
-print(f"init : {nim}")
-while nim:
-    player = 1 - player
-    if player:
-        pile = int(input("Choose Pile: "))
-        count = int(input("Choose Count: "))
-        ply = Nimply(pile, count)
-        print(f"You chose to take {ply.num_objects} from pile {ply.row}.")
+######### Now let's try to train the agent when playing
+######### some modifications to do:
+######### 1. the individuals will be generated after the game is played
+######### 2. after some games, a generation is completed
+
+class Genotype():
+    def __init__(self, s=None, m=None):
+        
+        self.states = s
+        self.moves = m
+        self.scores = []
+        self.init_fitness()  
+        self.fit = None
+        self.score()
+
+    def __str__(self):
+        return f"Individual with total fitness of {self.fit}:\nstates: {self.states},\nmoves: {self.moves},\nscores: {self.scores}"
+    
+    def __repr__(self):
+        return f"\nIndividual with total fitness of {self.fit}:\nstates: {self.states},\nmoves: {self.moves},\nscores: {self.scores}"
+
+    def init_fitness(self):
+        for i, state in enumerate(self.states):
+            current = list(state)
+            current[self.moves[i].row] -= self.moves[i].num_objects 
+            tmp = np.array([tuple(int(x) for x in f"{c:04b}") for c in current])
+            xor = tmp.sum(axis=0) % 2
+            xor = int("".join(str(_) for _ in xor), base=2)
+            self.scores.append(xor)
+            
+    def fitness(self, idx):
+        current = list(self.states[idx])
+        current[self.moves[idx].row] -= self.moves[idx].num_objects
+        tmp = np.array([tuple(int(x) for x in f"{c:04b}") for c in current])
+        xor = tmp.sum(axis=0) % 2
+        xor = int("".join(str(_) for _ in xor), base=2)
+        self.scores[idx] = xor
+
+    def score(self):
+        self.fit = sum(self.scores)
+
+
+class Agent_II():
+    def __init__(self):
+        self.brain = None
+    
+    def training(self):
+        population = []
+        for generation in range(GENERATIONS):
+            offsprings = []
+            for i in range(10):
+                game = Nim(5)
+                states_0 = []
+                moves_0 = []
+                states_1 = []
+                moves_1 = []
+                player = random.randint(0,1)
+
+                while game:
+                    player = 1 - player
+                    state = game.rows
+
+                    if population:
+                        playable = []
+                        playable_fitness = []
+                        for genome in population:
+                            for idx, gstate in enumerate(genome.states):
+                                if gstate == state:
+                                    playable.append(genome.moves[idx])
+                                    playable_fitness.append(genome.scores[idx])
+
+                        if not playable:
+                            print('Moves generated because no other moves were available')
+                            move = generate_move(state)
+                        else:
+                            pool = list(zip(playable, playable_fitness))
+                            pool.sort(key=lambda x: x[1]) #ordino in base alla fitness
+                            rnd = random.randint(0, int((pool[len(pool) -1 ][1] + 1) * 2))
+                            if rnd < min(playable_fitness):
+                                if random.random() < 0.2:
+                                    print('Moves generated because of probabilities')
+                                    move = generate_move(state)
+                                else:
+                                    print('Moves generated because of the best')
+                                    move = pool[0][0]
+                                    print()
+                                    print(move)
+
+                            elif rnd > max(playable_fitness):
+                                print('Moves generated because of choiches')
+                                move = random.choice(playable)
+                    else:
+                        print('Moves generated because of no population')
+                        move = generate_move(state)
+
+                    if player: 
+                        states_1.append(state)
+                        moves_1.append(move)
+                    else:
+                        states_0.append(state)
+                        moves_0.append(move)
+
+                    print()
+                    #print(f'Generation: {generation+1}, game: {i},\nGAME STATUS {game}, move chosen: {move}')
+                    game.nimming(move)
+                    print(game)
+                print()
+                #print(f'Game {i + 1} won by player {player}')
+
+                offsprings.append(Genotype(states_0, moves_0))
+                offsprings.append(Genotype(states_1, moves_1))
+
+            population.extend(offsprings)
+            population.sort(key=lambda i: i.fit, reverse=False)
+            population = population[:POPULATION_SIZE]
+
+
+        
+            best = min(population, key=lambda o: o.fit)
+            print()
+            print(f"Generation {generation+1} completed, minimum fitness offspring of this gen: {best}")
+
+        self.brain = population
+
+    def play(self, nim: Nim):
+        move = None
+        playable_moves = set()
+        fitness = 999
+        for neuron in self.brain:
+            for i, state in enumerate(neuron.states):
+                if state == nim:
+                    playable_moves.add(tuple([neuron.moves[i], neuron.scores[i]]))
+                    if neuron.scores[i] < fitness:
+                        move = neuron.moves[i]
+                        fitness = neuron.scores[i]
+        print(f'Available moves: {playable_moves}')
+        if move:
+            return move
+        else:
+            return generate_move(nim)
+
+
+if __name__ == "__main__":
+    ciccio = Agent_II()
+    ciccio.training()
+
+    nim = Nim(5)
+    player = random.randint(0,1)
+    print(f"init : {nim}")
+    while nim:
+        player = 1 - player
+        if player:
+            pile = int(input("Choose Pile: "))
+            count = int(input("Choose Count: "))
+            ply = Nimply(pile, count)
+            print(f"You chose to take {ply.num_objects} from pile {ply.row}.")
+        else:
+            ply = ciccio.play(nim.rows)
+            print(f"AI chose to take {ply.num_objects} from pile {ply.row}.")
+
+        nim.nimming(ply)
+        print(f"status: {nim}")
+    if(player):    
+        print(f"status: You won!")
     else:
-        ply = ciccio.play(nim.rows)
-        print(f"AI chose to take {ply.num_objects} from pile {ply.row}.")
+        print(f"status: AI won!")
 
-    nim.nimming(ply)
-    print(f"status: {nim}")
-if(player):    
-    print(f"status: You won!")
-else:
-    print(f"status: AI won!")
+
