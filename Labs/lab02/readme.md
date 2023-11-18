@@ -8,12 +8,13 @@ The project includes an AI agent that uses genetic algorithms to evolve and impr
 
 ## Features
 
-- Genetic algorithm for evolving strategies.
+- Genetic algorithm for evolving strategies, with plus strategy.
 - Nim game implementation.
 - Training process to improve the AI's performance.
 
 ## Classes and Functions
 
+Note that some of the parameters are chosen just for speed-up the process while debugging. 
 ### Classes
 
 1. **Nim:**
@@ -58,8 +59,8 @@ The project includes an AI agent that uses genetic algorithms to evolve and impr
    - Methods:
      - `_select_parent(population) -> None`
      - `_game(self, nim, population, states_0, states_1, moves_0, moves_1, player=0) -> tuple`
-     - `_mutation(self, ind: Genotype) -> Genotype`
-     - `_crossover(self, ind1: Genotype, ind2: Genotype) -> Genotype`
+     - `_mutation(self, ind: Genotype) -> Genotype`, here there is a chance of a simple mutation or for a simple gaussian mutation
+     - `_crossover(self, ind1: Genotype, ind2: Genotype) -> Genotype`, in this case by simply splitting in half
      - `training(self) -> None`
      - `play(self, nim: Nim) -> Nimply`
 
