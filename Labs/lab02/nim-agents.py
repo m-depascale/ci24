@@ -37,10 +37,10 @@ class Nim:
 """
 For simplicity, the game is fixed to 5 rows
 """
-POPULATION_SIZE = 10_000
-GENERATIONS = 100
-TOURNAMENT_SIZE = 10
-OFFSPRING_SIZE = 500
+POPULATION_SIZE = 5_000
+GENERATIONS = 1_000
+TOURNAMENT_SIZE = 50
+OFFSPRING_SIZE = 50
 MUTATION_PROBABILITY = 0.20
 
 class Individual():
@@ -357,8 +357,23 @@ class Agent_II():
         g = copy(ind)
         gs = g.states
         gmoves = g.moves
-        idx = random.randint(0, len(gs) - 1)
-        gmoves[idx] = generate_move(gs[idx])
+        if random.random() < 0.5:
+            idx = random.randint(0, len(gs) - 1)
+            gmoves[idx] = generate_move(gs[idx])
+        # Gaussian mutation on moves
+            for i, move in enumerate(gmoves):
+                row, num_objects = move
+
+                # Apply Gaussian noise to num_objects
+                mutated_num_objects = int(round(num_objects + np.random.normal(loc=0, scale=0.1)))
+
+                # Ensure mutated_num_objects is within valid range
+                min_objects = 1
+                max_objects = gs[i][row]
+                mutated_num_objects = max(min_objects, min(mutated_num_objects, max_objects))
+
+                # Update the move in the list
+                gmoves[i] = Nimply(row, mutated_num_objects)
         return Genotype(gs, gmoves)
     
     def _crossover(self, ind1: Genotype, ind2: Genotype) -> Genotype:
@@ -397,9 +412,7 @@ class Agent_II():
             pop.sort(key=lambda i: i.fit, reverse=False)
             pop = pop[:POPULATION_SIZE]
 
-            best = min(pop, key=lambda o: o.fit)
-            print()
-            print(f"Generation {generation+1} completed, minimum fitness offspring of this gen: {best}")
+            print(f"Generation {generation+1} completed")
 
         self.brain = set(pop)
 
@@ -446,5 +459,8 @@ if __name__ == "__main__":
             print(f"status: You won!")
         else:
             print(f"status: AI won!")
-
+        
+        nim = Nim(5)
+        player = random.randint(0,1)
+        print(f"init : {nim}")
 
