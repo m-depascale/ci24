@@ -38,7 +38,7 @@ Note that some of the parameters are chosen just for speed-up the process while 
      - `score(self) -> None`
 
 3. **Agent:**
-   - Description: Represents the AI agent using genetic algorithms.
+   - Description: Represents the AI agent using genetic algorithms, in this case the population is randomly generated and then optimized without "playing", because we know that the game, even with higher number of piles, has a finite number of states. Anyway, here randomness is key.
    - Methods:
      - `__init__(self) -> None`
      - `training(self) -> None`
@@ -55,7 +55,7 @@ Note that some of the parameters are chosen just for speed-up the process while 
      - `score(self) -> None`
 
 5. **Agent_II:**
-   - Description: Represents an alternative version of the AI agent using genetic algorithms.
+   - Description: Represents an alternative version of the AI agent using genetic algorithms. This agent play with himself for training, but this little boy needs lots of care and time (generations), please treat it well enough even if he will not look like the smartest boy!
    - Methods:
      - `_select_parent(population) -> None`
      - `_game(self, nim, population, states_0, states_1, moves_0, moves_1, player=0) -> tuple`
