@@ -73,7 +73,7 @@ class TicTacToe:
 
 class TicTacToeAgent():
     #model free q learning with some minmax strategy
-    def __init__(self, alpha=0.5, epsilon=0.3, discount_factor=0.1):
+    def __init__(self, alpha=0.1, epsilon=0.3, discount_factor=0.1):
         self.q = dict()
         self.alpha = alpha
         self.epsilon = epsilon
@@ -136,20 +136,20 @@ class TicTacToeAgent():
         t2 = player* np.trace(state.board[:, ::-1])/-15
 
         if any(value > player * -0.6 for value in [c1,c2,c3, r1,r2,r3, t1,t2]):
-            return -2
+            return -0.1
         else:
-            return 0.1
+            return 0
 
     def update_Q_value(self, state, action, reward, next_state):
         if reward is None:
-            reward = -0.1 
+            reward = 0
         #print(reward)
         state_key = tuple(state.board.tolist()[0])
         next_state_key = tuple(next_state.board.tolist()[0])
         next_Q_values = [self.get_Q_value(next_state_key, next_action) for next_action in TicTacToe.available_actions(next_state.board)]
         max_next_Q = max(next_Q_values) if next_Q_values else 0.0
         danger = self.dangerouness(next_state)
-        self.q[(state_key, action)] = danger + self.q.get((state_key, action), 0.0) + self.alpha * (reward + self.discount_factor * max_next_Q - self.q.get((state_key, action), 0.0))
+        self.q[(state_key, action)] =  danger + self.q.get((state_key, action), 0.0) * (1 - self.alpha) + self.alpha * (reward + self.discount_factor * max_next_Q)
 
 
 
@@ -240,44 +240,45 @@ def play(ai, human_player=None):
         
 ciccio = train(10_000)
 
-i = 0
-ai_wins = 0
-while(i < 100):  
-    player = 1 
-    game = TicTacToe()
+while True:
+    i = 0
+    ai_wins = 0
+    while(i < 100):  
+        player = 1 
+        game = TicTacToe()
 
-    while not game.isEnd:
-        #ai first
-        if player == 1:
-            ai_move = ciccio.choose_action(game, player=1, epsilon=False)
-            game.move(ai_move)
-        else:
-            available_actions = game.available_actions(game.board)
-            rnd_move = random.choice(available_actions)
-            game.move(rnd_move)
-        player = 1 - player
-    if game.winner == 1:
-        ai_wins += 1
-    i += 1
-print(f'Ai wins {ai_wins/100} of the times against random choices as first')
+        while not game.isEnd:
+            #ai first
+            if player == 1:
+                ai_move = ciccio.choose_action(game, player=1, epsilon=False)
+                game.move(ai_move)
+            else:
+                available_actions = game.available_actions(game.board)
+                rnd_move = random.choice(available_actions)
+                game.move(rnd_move)
+            player = 1 - player
+        if game.winner == 1:
+            ai_wins += 1
+        i += 1
+    print(f'Ai wins {ai_wins/100} of the times against random choices as first')
 
-i = 0
-ai_wins = 0
-while(i < 100):  
-    player = 0 
-    game = TicTacToe()
+    i = 0
+    ai_wins = 0
+    while(i < 100):  
+        player = 0 
+        game = TicTacToe()
 
-    while not game.isEnd:
-        #ai first
-        if player == 1:
-            ai_move = ciccio.choose_action(game, player=1, epsilon=False)
-            game.move(ai_move)
-        else:
-            available_actions = game.available_actions(game.board)
-            rnd_move = random.choice(available_actions)
-            game.move(rnd_move)
-        player = 1 - player
-    if game.winner == 1:
-        ai_wins += 1
-    i += 1
-print(f'Ai wins {ai_wins/100} of the times against random choices as second')
+        while not game.isEnd:
+            #ai first
+            if player == 1:
+                ai_move = ciccio.choose_action(game, player=1, epsilon=False)
+                game.move(ai_move)
+            else:
+                available_actions = game.available_actions(game.board)
+                rnd_move = random.choice(available_actions)
+                game.move(rnd_move)
+            player = 1 - player
+        if game.winner == 1:
+            ai_wins += 1
+        i += 1
+    print(f'Ai wins {ai_wins/100} of the times against random choices as second')
