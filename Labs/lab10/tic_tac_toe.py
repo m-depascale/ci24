@@ -83,26 +83,63 @@ class TicTacToeAgent():
         key = (tuple(board), action)
         return self.q.get(key, 0.0)
 
-    def minmax(self, node, depth, player):
-        if depth == 0 or node.isTerminal: 
-            return 0
-        if player == 1: #max
-            return 
-        return 0
-
-    def choose_action(self, state, epsilon=False):
+    def choose_action(self, state, epsilon=False, random_prob=0.3, player=1):
         # state = board
         available_actions = TicTacToe.available_actions(state.board)
-        if epsilon and random.uniform(0, 1) < self.epsilon:
-            action = random.choice(available_actions)
+        state_key = tuple(player * state.board.tolist()[0])
+        if epsilon:
+            # If epsilon is True, allow both exploration and exploitation
+            if random.uniform(0, 1) < random_prob:
+                # Choose a random action with a probability of random_prob
+                action = random.choice(available_actions)
+                #print("Action chosen randomly:", action)
+            else:
+                # Otherwise, choose an action based on Q-values
+                Q_values = [self.get_Q_value(state_key, a) for a in available_actions]
+                action = available_actions[Q_values.index(max(Q_values))]
+                #print("Action chosen based on Q-values:", action)
         else:
-            Q_values = [self.get_Q_value(state.board.tolist()[0], a) for a in available_actions]
-            action = available_actions[Q_values.index(max(Q_values))]
+            matching_keys = [key for key in self.q.keys() if key[0] == state_key]
+            #print(matching_keys)
+            if matching_keys:
+                # Check if there are any keys with the same state_key
+                Q_values = [self.get_Q_value(key[0], key[1]) for key in matching_keys]
+                if max(Q_values) < 0:
+                    action = random.choice(available_actions)
+                    #print("Action chosen randomly (state present in dictionary but bad Q-Value):", action)
+                else:
+                    action = matching_keys[Q_values.index(max(Q_values))][1]
+                    #print("Action chosen based on Q-values:", action)
+            else:
+                # If the state is not present in the dictionary, choose randomly
+                action = random.choice(available_actions)
+                #print("Action chosen randomly (state not present in dictionary):", action)
+
         return action
+
     
     def reward(self, state):
         return state.winner
     
+    def dangerouness(self, state):
+        player = state.player 
+
+        c1 = player* np.sum(state.board[:, 0])/-15
+        c2 = player* np.sum(state.board[:, 1])/-15
+        c3 = player* np.sum(state.board[:, 2])/-15
+
+        r1 = player* np.sum(state.board[0])/-15
+        r2 = player* np.sum(state.board[0])/-15
+        r3 = player* np.sum(state.board[0])/-15
+
+        t1 = player* np.trace(state.board)/-15
+        t2 = player* np.trace(state.board[:, ::-1])/-15
+
+        if any(value > player * -0.6 for value in [c1,c2,c3, r1,r2,r3, t1,t2]):
+            return -2
+        else:
+            return 0.1
+
     def update_Q_value(self, state, action, reward, next_state):
         if reward is None:
             reward = -0.1 
@@ -111,7 +148,8 @@ class TicTacToeAgent():
         next_state_key = tuple(next_state.board.tolist()[0])
         next_Q_values = [self.get_Q_value(next_state_key, next_action) for next_action in TicTacToe.available_actions(next_state.board)]
         max_next_Q = max(next_Q_values) if next_Q_values else 0.0
-        self.q[(state_key, action)] = self.q.get((state_key, action), 0.0) + self.alpha * (reward + self.discount_factor * max_next_Q - self.q.get((state_key, action), 0.0))
+        danger = self.dangerouness(next_state)
+        self.q[(state_key, action)] = danger + self.q.get((state_key, action), 0.0) + self.alpha * (reward + self.discount_factor * max_next_Q - self.q.get((state_key, action), 0.0))
 
 
 
@@ -183,7 +221,7 @@ def play(ai, human_player=None):
         # Have AI make a move
         else:
             print("AI's Turn")
-            i = ai.choose_action(game, epsilon=False)
+            i = ai.choose_action(game, player=player, epsilon=False)
             print(f"AI chose to write in position {i}")
 
         # Make move
@@ -193,11 +231,53 @@ def play(ai, human_player=None):
         if game.isEnd:
             print()
             print("GAME OVER")
-            winner = "Human" if player == human_player else "AI"
-            print(f"Winner is {winner}")
+            if game.winner is not None:
+                winner = "Human" if game.winner == human_player else "AI"
+                print(f"Winner is {winner}")
+            else:
+                print("TIE")
             return
         
-ciccio =train(10000)
-pprint(ciccio.q)
-play(ciccio)
-play(ciccio)
+ciccio = train(10_000)
+
+i = 0
+ai_wins = 0
+while(i < 100):  
+    player = 1 
+    game = TicTacToe()
+
+    while not game.isEnd:
+        #ai first
+        if player == 1:
+            ai_move = ciccio.choose_action(game, player=1, epsilon=False)
+            game.move(ai_move)
+        else:
+            available_actions = game.available_actions(game.board)
+            rnd_move = random.choice(available_actions)
+            game.move(rnd_move)
+        player = 1 - player
+    if game.winner == 1:
+        ai_wins += 1
+    i += 1
+print(f'Ai wins {ai_wins/100} of the times against random choices as first')
+
+i = 0
+ai_wins = 0
+while(i < 100):  
+    player = 0 
+    game = TicTacToe()
+
+    while not game.isEnd:
+        #ai first
+        if player == 1:
+            ai_move = ciccio.choose_action(game, player=1, epsilon=False)
+            game.move(ai_move)
+        else:
+            available_actions = game.available_actions(game.board)
+            rnd_move = random.choice(available_actions)
+            game.move(rnd_move)
+        player = 1 - player
+    if game.winner == 1:
+        ai_wins += 1
+    i += 1
+print(f'Ai wins {ai_wins/100} of the times against random choices as second')
