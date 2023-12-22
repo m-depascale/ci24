@@ -1,5 +1,6 @@
 from collections import namedtuple
 from copy import copy
+from pprint import pprint
 import time
 import numpy as np
 import random 
@@ -38,17 +39,25 @@ class TicTacToe:
         board = np.reshape(self.board, (3,3))
         for i in range(3):
             if np.sum(board[:, i]) == 15 or np.sum(board[:, i]) == -15: #column sum
+                #print("WIN")
                 self.winner = self.player
                 self.isEnd = True
+                return
             if np.sum(board[i]) == 15 or np.sum(board[i]) == -15: #raw sum
+                #print("WIN")
                 self.winner = self.player
                 self.isEnd = True
+                return
             if np.trace(board[:, ::-1]) == 15 or np.trace(board[:, ::-1]) == -15:
+                #print("WIN")
                 self.winner = self.player
                 self.isEnd = True
+                return
             if np.trace(board) == 15 or np.trace(board) == -15:
+                #print("WIN")
                 self.winner = self.player
                 self.isEnd = True
+                return
         if not np.any(self.board == 0): 
             self.winner = None 
             self.isEnd = True
@@ -57,13 +66,14 @@ class TicTacToe:
         if self.isAvailable(move):
             self.board[0][move] = self.player * self.hidden_board[move]
             self.check_end()
+            #print(self.winner)
             if not self.isEnd:
                 self.switch_player()
 
 
 class TicTacToeAgent():
     #model free q learning with some minmax strategy
-    def __init__(self, alpha=0.5, epsilon=0.5, discount_factor=0.1):
+    def __init__(self, alpha=0.5, epsilon=0.3, discount_factor=0.1):
         self.q = dict()
         self.alpha = alpha
         self.epsilon = epsilon
@@ -95,7 +105,8 @@ class TicTacToeAgent():
     
     def update_Q_value(self, state, action, reward, next_state):
         if reward is None:
-            reward = 0 
+            reward = -0.1 
+        #print(reward)
         state_key = tuple(state.board.tolist()[0])
         next_state_key = tuple(next_state.board.tolist()[0])
         next_Q_values = [self.get_Q_value(next_state_key, next_action) for next_action in TicTacToe.available_actions(next_state.board)]
@@ -127,7 +138,7 @@ def train(n=1000):
             new_state = copy(game)
 
             # When game is over, update Q values with rewards
-            ai.update_Q_value(state, action, state.winner, new_state)
+            ai.update_Q_value(state, action, new_state.winner, new_state)
 
     print("Done training")
 
@@ -186,6 +197,7 @@ def play(ai, human_player=None):
             print(f"Winner is {winner}")
             return
         
-ciccio =train(5000)
+ciccio =train(10000)
+pprint(ciccio.q)
 play(ciccio)
 play(ciccio)
