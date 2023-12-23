@@ -73,7 +73,7 @@ class TicTacToe:
 
 class TicTacToeAgent():
     #model free q learning with some minmax strategy
-    def __init__(self, alpha=0.1, epsilon=0.3, discount_factor=0.1):
+    def __init__(self, alpha=0.3, epsilon=0.2, discount_factor=0.25):
         self.q = dict()
         self.alpha = alpha
         self.epsilon = epsilon
@@ -118,9 +118,6 @@ class TicTacToeAgent():
         return action
 
     
-    def reward(self, state):
-        return state.winner
-    
     def dangerouness(self, state):
         player = state.player 
 
@@ -135,8 +132,10 @@ class TicTacToeAgent():
         t1 = player* np.trace(state.board)/-15
         t2 = player* np.trace(state.board[:, ::-1])/-15
 
+        if any(value > player * -0.8 for value in [c1,c2,c3, r1,r2,r3, t1,t2]):
+            return -1.6
         if any(value > player * -0.6 for value in [c1,c2,c3, r1,r2,r3, t1,t2]):
-            return -0.1
+            return -0.8
         else:
             return 0
 
@@ -163,20 +162,49 @@ def train(n=1000):
         print(f"Playing training game {i + 1}")
         game = TicTacToe()
 
-        # Game loop
+        # Game loop agent first
+        
         while not game.isEnd:
             #game.print_tic_tac_toe_board()
-            
-            # Keep track of current state and action
-            state = copy(game)
-            action = ai.choose_action(state, epsilon=True)
+            if game.player == 1:
+                # Keep track of current state and action
+                state = copy(game)
+                action = ai.choose_action(state, epsilon=True)
 
-            # Make move
-            game.move(action)
-            new_state = copy(game)
+                # Make move
+                game.move(action)
+                new_state = copy(game)
 
-            # When game is over, update Q values with rewards
-            ai.update_Q_value(state, action, new_state.winner, new_state)
+                # When game is over, update Q values with rewards
+                ai.update_Q_value(state, action, new_state.winner, new_state)
+            else:
+                available_actions = game.available_actions(game.board)
+                rnd_move = random.choice(available_actions)
+                game.move(rnd_move)
+
+    for i in range(n):
+        print(f"Playing training game {i + 1}")
+        game = TicTacToe()
+
+        # Game loop agent second
+        
+        while not game.isEnd:
+            #game.print_tic_tac_toe_board()
+            if game.player == -1:
+                # Keep track of current state and action
+                state = copy(game)
+                action = ai.choose_action(state, epsilon=True)
+
+                # Make move
+                game.move(action)
+                new_state = copy(game)
+
+                # When game is over, update Q values with rewards
+                ai.update_Q_value(state, action, new_state.winner, new_state)
+            else:
+                available_actions = game.available_actions(game.board)
+                rnd_move = random.choice(available_actions)
+                game.move(rnd_move)
 
     print("Done training")
 
@@ -238,8 +266,8 @@ def play(ai, human_player=None):
                 print("TIE")
             return
         
-ciccio = train(10_000)
-
+ciccio = train(20_000)
+pprint(ciccio.q)
 while True:
     i = 0
     ai_wins = 0
