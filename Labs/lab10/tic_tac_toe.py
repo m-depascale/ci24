@@ -73,7 +73,7 @@ class TicTacToe:
 
 class TicTacToeAgent():
     #model free q learning with some minmax strategy
-    def __init__(self, alpha=0.3, epsilon=0.2, discount_factor=0.25):
+    def __init__(self, alpha=0.19, epsilon=0.13, discount_factor=0.11):
         self.q = dict()
         self.alpha = alpha
         self.epsilon = epsilon
@@ -139,6 +139,13 @@ class TicTacToeAgent():
         else:
             return 0
 
+    def reward_Q_value(self, states, moves, cloudy=1): # cloudy = 1, -1
+        for idx, el in enumerate(states):
+            state_key = tuple(el.board.tolist()[0])
+            action = moves[idx]
+            premietto = ((idx + 1)/len(moves)) * cloudy * self.alpha
+            self.q[(state_key, action)] = self.q.get((state_key, action), 0.0) + premietto
+
     def update_Q_value(self, state, action, reward, next_state):
         if reward is None:
             reward = 0
@@ -163,7 +170,8 @@ def train(n=1000):
         game = TicTacToe()
 
         # Game loop agent first
-        
+        moves = []
+        states = [] 
         while not game.isEnd:
             #game.print_tic_tac_toe_board()
             if game.player == 1:
@@ -171,6 +179,8 @@ def train(n=1000):
                 state = copy(game)
                 action = ai.choose_action(state, epsilon=True)
 
+                moves.append(action)
+                states.append(state)
                 # Make move
                 game.move(action)
                 new_state = copy(game)
@@ -181,7 +191,9 @@ def train(n=1000):
                 available_actions = game.available_actions(game.board)
                 rnd_move = random.choice(available_actions)
                 game.move(rnd_move)
-
+        if game.winner is not None: #agent wins
+            ai.reward_Q_value(states, moves, cloudy=game.winner)
+            
     for i in range(n):
         print(f"Playing training game {i + 1}")
         game = TicTacToe()
@@ -195,6 +207,9 @@ def train(n=1000):
                 state = copy(game)
                 action = ai.choose_action(state, epsilon=True)
 
+                moves.append(action)
+                states.append(state)
+
                 # Make move
                 game.move(action)
                 new_state = copy(game)
@@ -206,6 +221,8 @@ def train(n=1000):
                 rnd_move = random.choice(available_actions)
                 game.move(rnd_move)
 
+        if game.winner is not None: #agent wins
+            ai.reward_Q_value(states, moves, cloudy=game.winner*-1)
     print("Done training")
 
     # Return the trained AI
@@ -266,11 +283,14 @@ def play(ai, human_player=None):
                 print("TIE")
             return
         
-ciccio = train(20_000)
+ciccio = train(10_000)
 pprint(ciccio.q)
+play(ciccio)
+play(ciccio)
 while True:
     i = 0
     ai_wins = 0
+    drafts = 0
     while(i < 100):  
         player = 1 
         game = TicTacToe()
@@ -287,11 +307,14 @@ while True:
             player = 1 - player
         if game.winner == 1:
             ai_wins += 1
+        elif game.winner is None:
+            drafts += 1
         i += 1
-    print(f'Ai wins {ai_wins/100} of the times against random choices as first')
+    print(f'Ai wins {ai_wins/100} of the times against random choices as first\n drafts are {drafts/100} and ciccio lost {(100-ai_wins - drafts)/100} of the times')
 
     i = 0
     ai_wins = 0
+    drafts = 0
     while(i < 100):  
         player = 0 
         game = TicTacToe()
@@ -308,5 +331,8 @@ while True:
             player = 1 - player
         if game.winner == 1:
             ai_wins += 1
+        elif game.winner is None:
+            drafts += 1
         i += 1
-    print(f'Ai wins {ai_wins/100} of the times against random choices as second')
+    print(f'Ai wins {ai_wins/100} of the times against random choices as second\n drafts are {drafts/100} and ciccio lost {(100-ai_wins - drafts)/100} of the times')
+
