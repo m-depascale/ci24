@@ -50,7 +50,7 @@ class MinMaxPlayer(Player):
             p, o = self.board_evaluation(game)
             if winner == player_idx:
                 return p - depth, None
-            elif winner != player_idx:
+            elif winner == (player_idx + 1 % 2):
                 return -o + depth, None
             else:
                 return 0, None
